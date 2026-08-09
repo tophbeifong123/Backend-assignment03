@@ -1,65 +1,60 @@
 import { Injectable } from '@nestjs/common';
-
-export interface Student {
-  id: number;
-  name: string;
-  email: string;
-  major: string;
-}
+import { InjectRepository } from '@nestjs/typeorm';
+import { DeepPartial, Repository } from 'typeorm';
+import { Student } from './entities/student.entity';
 
 @Injectable()
 export class StudentsRepository {
-  private students: Student[] = [
-    {
-      id: 1,
-      name: 'John',
-      email: 'john@example.com',
-      major: 'Computer Engineering',
-    },
-  ];
+  constructor(
+    @InjectRepository(Student)
+    private readonly repository: Repository<Student>,
+  ) {}
 
-  findAll(): Student[] {
-    return this.students;
+  findAll() {
+    return this.repository.find();
   }
 
-  findById(id: number): Student | undefined {
-    return this.students.find((student) => student.id === id);
+  findById(id: number) {
+    return this.repository.findOne({
+      where: { id },
+    });
   }
 
-  create(student: Omit<Student, 'id'>): Student {
-    const newStudent: Student = {
-      id: this.students.length + 1,
-      ...student,
-    };
+  create(data: DeepPartial<Student>) {
+    const student = this.repository.create(data);
 
-    this.students.push(newStudent);
-
-    return newStudent;
+    return this.repository.save(student);
   }
 
-  update(id: number, data: any) {
-    const student = this.students.find((student) => student.id === id);
+  update(id: number, data: Partial<Student>) {
+    return this.repository
+      .findOne({
+        where: { id },
+      })
+      .then(async (student) => {
+        if (!student) {
+          return null;
+        }
 
-    if (!student) {
-      return null;
-    }
+        Object.assign(student, data);
 
-    Object.assign(student, data);
-
-    return student;
+        return this.repository.save(student);
+      });
   }
 
   remove(id: number) {
-    const index = this.students.findIndex((student) => student.id === id);
+    return this.repository
+      .findOne({
+        where: { id },
+      })
+      .then(async (student) => {
+        if (!student) {
+          return null;
+        }
 
-    if (index === -1) {
-      return null;
-    }
+        await this.repository.remove(student);
 
-    const deletedStudent = this.students[index];
-
-    this.students.splice(index, 1);
-
-    return deletedStudent;
+        return student;
+      });
   }
 }
